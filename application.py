@@ -48,5 +48,5 @@ def index():
 def index():
     return bottle.static_file('channel.html', root=dirname)
 
-if __name__ == '__main__':
-    bottle.run(host='localhost', port='8080')
+if __name__ == "__main__":
+    bottle.run(server="gunicorn", bind="unix:/tmp/gunicorn-friendheat.sock")
