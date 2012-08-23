@@ -1,7 +1,5 @@
 import os.path
-from urllib.parse import quote
-from urllib.request import urlopen
-from urllib.error import URLError
+from urllib import quote, urlopen
 import json
 
 
@@ -25,8 +23,8 @@ def geocode(city, db):
 
     try:
         response = urlopen(GOOGLE_API_URL.format(city=quote(city))).read()
-        decoded = json.loads(str(response, 'utf-8'))
-    except URLError as e:
+        decoded = json.loads(response)
+    except IOError as e:
         bottle.abort(504, "Couldn't access Google API: " + str(e))
     except ValueError as e:
         bottle.abort(502, "Couldn't decode API response: " + str(e))
