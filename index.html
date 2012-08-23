@@ -2,10 +2,16 @@
 <html>
   <head>
     <title>Facebook Client-side Authentication Example</title>
+    <script src="//static.stillinbeta.com/friendheat/jquery.js"></script>
   </head>
   <body>
     <div id="fb-root"></div>
     <script>
+        
+      
+
+      var GEOCODE_API = 'http://maps.googleapis.com/maps/api/geocode/json?'
+
       // Load the SDK Asynchronously
       (function(d){
          var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
@@ -19,21 +25,65 @@
       window.fbAsyncInit = function() {
         FB.init({
           appId      : '253727158063193', // App ID
-          channelUrl : '//'+window.location.hostname+'/channel.html', // Path to your Channel File
+          channelUrl : '//'+window.location.hostname+'/friendheat/channel.html', // Path to your Channel File
           status     : true, // check login status
           cookie     : true, // enable cookies to allow the server to access the session
           xfbml      : false  // parse XFBML
         });
 
+        function AllRecieved() {
+            this.request_count = 0; 
+            this.finisted = false;
+            this.is_ready = function () {
+                return this.request_count == 0 && this.is_ready
+            }
+        }
+        
+        var all_recieved = AllRecieved();
+        var data_so_far = {};
+        
+        function construct_map() {
+            if (! all_recieved.is_ready()) {
+                return;
+            }
+            console.debug(data_so_far);
+        }
+
+        function debug_friends(friends) {
+            if (! friends.data) {
+                all_recieved.finished = true;
+                construct_map();
+            }
+            jQuery.each(friends.data, function(index, friend) 
+                if (friend.location) {
+                    if (data_so_far[friend.location]) {
+                        data_so_far[friend.location].count += 1
+                    } else {
+                        data_so_far[friend.location] = {'count': 1}
+                        all_recieved.request_count++;
+                        $.getJSON(GEOCODE_API + $.param({'sensor': true, 'address': friend.location})
+                        .done(function(data) {
+                            data_so_far[friend.location].location = data
+                            construct_map();
+                        })
+                        .complete(function () {
+                            all_recieved.request_count--;
+                            construct_map();
+                        })
+                    }
+                }
+            })
+
+            if (friends.paging.next) {
+                FB.api(friends.paging.next, debug_friends)});
+            }
+        }
+
         // listen for and handle auth.statusChange events
         FB.Event.subscribe('auth.statusChange', function(response) {
           if (response.authResponse) {
             // user has auth'd your app and is logged into Facebook
-            FB.api('/me', function(me){
-              if (me.name) {
-                document.getElementById('auth-displayname').innerHTML = me.name;
-              }
-            })
+            FB.api('/me/friends?fields=name,location', debug_friends)
             document.getElementById('auth-loggedout').style.display = 'none';
             document.getElementById('auth-loggedin').style.display = 'block';
           } else {
@@ -45,7 +95,7 @@
 
         // respond to clicks on the login and logout links
         document.getElementById('auth-loginlink').addEventListener('click', function(){
-          FB.login();
+          FB.login(null, {'scope':'friends_location'});
         });
         document.getElementById('auth-logoutlink').addEventListener('click', function(){
           FB.logout();
@@ -59,7 +109,7 @@
           <a href="#" id="auth-loginlink">Login</a>
         </div>
         <div id="auth-loggedin" style="display:none">
-          Hi, <span id="auth-displayname"></span>  
+            <ul id="json"></ul>
         (<a href="#" id="auth-logoutlink">logout</a>)
       </div>
     </div>
