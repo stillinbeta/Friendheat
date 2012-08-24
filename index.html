@@ -1,12 +1,40 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Facebook Client-side Authentication Example</title>
-    <script src="//static.stillinbeta.com/friendheat/jquery.js"></script>
-  </head>
-  <body>
-    <div id="fb-root"></div>
-    <script>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+        <title>Facebook Client-side Authentication Example</title>
+        <script type="text/javascript" src="//static.stillinbeta.com/friendheat/jquery.js"></script>
+        <style type="text/css">
+            html { height: 100% }
+            body { height: 100%; margin: 0; padding: 0 }
+            #map_canvas { height: 100% }
+        </style>
+       
+        <script type="text/javascript"
+            src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyBip8_gYPz10ol1w4JUDkJs7BEEcI94HOg&sensor=false">
+        </script>
+        <script type="text/javascript">
+           function initialize() {
+                var style = [ { "stylers": [ { "visibility": "off" } ] },{ "featureType": "landscape", "stylers": [ { "color": "#ffffff" }, { "visibility": "on" } ] },{ "featureType": "water", "stylers": [ { "color": "#808080" }, { "visibility": "on" } ] } ] 
+                var styledMap = new google.maps.StyledMapType(style, {"name": "High Contrast"})
+  
+                var mapOptions = {
+                    center: new google.maps.LatLng(0,-98),
+                    zoom: 2,
+                    mapTypeControlOptions: {
+                        mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'map_style']
+                    }
+                };
+                window.map = new google.maps.Map(document.getElementById("map_canvas"),
+                    mapOptions);
+                window.map.mapTypes.set('map_style', styledMap);
+                window.map.setMapTypeId('map_style');
+            }
+        </script> 
+    </head>
+    <body onload="initialize()">
+        <div id="fb-root"></div>
+        <script>
         // Load the SDK Asynchronously
         (function(d){
             var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
@@ -35,6 +63,7 @@
                     FB.api('/me/friends?fields=name,location', debug_friends)
                     document.getElementById('auth-loggedout').style.display = 'none';
                     document.getElementById('auth-loggedin').style.display = 'block';
+                    document.getElementById('auth-loggedout').style.backgroundColour = 'pink';
                 } else {
                     // user has not auth'd your app, or is not logged into Facebook
                     document.getElementById('auth-loggedout').style.display = 'block';
@@ -49,7 +78,7 @@
             document.getElementById('auth-logoutlink').addEventListener('click', function(){
                 FB.logout();
             }); 
-        } 
+        }
 
         function AllReceived() {
             this.request_count = 0; 
@@ -67,7 +96,16 @@
             if (! all_received.is_ready()) {
                 return;
             }
-            console.debug(data_so_far);
+            var points = []
+            jQuery.each(data_so_far, function(index, city) {
+                points.push({location: new google.maps.LatLng(city.location.lat, city.location.long),
+                             weight: city.count}) 
+            });
+            console.debug(points);
+            var heatmap = new google.maps.visualization.HeatmapLayer({
+                data: points
+            });
+            heatmap.setMap(window.map);
         }
 
         function debug_friends(friends) {
@@ -101,18 +139,17 @@
                 FB.api(friends.paging.next, debug_friends);
             }
         }
-    </script>
-
-    <h1>Facebook Client-side Authentication Example</h1>
-      <div id="auth-status">
-        <div id="auth-loggedout">
-          <a href="#" id="auth-loginlink">Login</a>
+        </script>
+        <div id="auth-status" style="height: 3%; text-align: right; background-color: #808080; border-bottom: 2px solid white;">
+            <div id="auth-loggedout">
+                <a href="#" id="auth-loginlink">Login</a>
+            </div>
+            <div id="auth-loggedin" style="display:none">
+                (<a href="#" id="auth-logoutlink">logout</a>)
+            </div>
         </div>
-        <div id="auth-loggedin" style="display:none">
-            <ul id="json"></ul>
-        (<a href="#" id="auth-logoutlink">logout</a>)
-      </div>
-    </div>
 
-  </body>
+    
+        <div id="map_canvas" style="width:100%; height:96%"></div>
+    </body>
 </html>
