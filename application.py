@@ -78,11 +78,13 @@ class GeocodeHandler(tornado.web.RequestHandler):
         self.finish()
 
         self.db[self.city] = location_dict
+        self.db.sync()
 
 def application():
+    path = os.path.dirname(os.path.abspath(__file__))
     geocode_args = {'limiter': Limiter(),
-                    'db': sqlite3dbm.sshelve.open('db.sqlite3')}
-    static_args = {'path': os.path.dirname(os.path.abspath(__file__)),
+                    'db': sqlite3dbm.sshelve.open(path + '/db.sqlite3')}
+    static_args = {'path': path + "/static/",
                    'default_filename': 'index.html'}
        
     return tornado.web.Application([
