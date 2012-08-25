@@ -1,73 +1,134 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Facebook Client-side Authentication Example</title>
-    <script src="//static.stillinbeta.com/friendheat/jquery.js"></script>
-  </head>
-  <body>
-    <div id="fb-root"></div>
-    <script>
-        
-      
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+        <title>Facebook Client-side Authentication Example</title>
+        <script type="text/javascript" src="//static.stillinbeta.com/friendheat/jquery.js"></script>
+        <style type="text/css">
+            html { height: 100% }
+            body { height: 100%; margin: 0; padding: 0 }
+            #map_canvas { height: 100% }
+        </style>
+       
+        <script type="text/javascript"
+            src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyBip8_gYPz10ol1w4JUDkJs7BEEcI94HOg&sensor=false">
+        </script>
+        <script type="text/javascript">
+           function initialize() {
+                var style = [ { "stylers": [ { "visibility": "off" } ] },{ "featureType": "landscape", "stylers": [ { "color": "#ffffff" }, { "visibility": "on" } ] },{ "featureType": "water", "stylers": [ { "color": "#808080" }, { "visibility": "on" } ] } ] 
+                var styledMap = new google.maps.StyledMapType(style, {"name": "High Contrast"})
+  
+                var mapOptions = {
+                    center: new google.maps.LatLng(0,-98),
+                    zoom: 2,
+                    mapTypeControlOptions: {
+                        mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'map_style']
+                    }
+                };
+                window.map = new google.maps.Map(document.getElementById("map_canvas"),
+                    mapOptions);
+                window.map.mapTypes.set('map_style', styledMap);
+                window.map.setMapTypeId('map_style');
+            }
+        </script> 
+    </head>
+    <body onload="initialize()">
+        <div id="fb-root"></div>
+        <script>
+        // Load the SDK Asynchronously
+        (function(d){
+            var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+            if (d.getElementById(id)) {
+                return;
+            }
+            js = d.createElement('script'); js.id = id; js.async = true;
+            js.src = "//connect.facebook.net/en_US/all.js";
+            ref.parentNode.insertBefore(js, ref);
+        }(document));
 
-      var GEOCODE_API = 'http://maps.googleapis.com/maps/api/geocode/json?'
+        // Init the SDK upon load
+        window.fbAsyncInit = function() {
+            FB.init({
+                appId      : '253727158063193', // App ID
+                channelUrl : '//'+window.location.hostname+'/friendheat/channel.html',
+                status     : true, // check login status
+                cookie     : true, // enable cookies to allow the server to access the session
+                xfbml      : false  // parse XFBML
+            });
 
-      // Load the SDK Asynchronously
-      (function(d){
-         var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
-         if (d.getElementById(id)) {return;}
-         js = d.createElement('script'); js.id = id; js.async = true;
-         js.src = "//connect.facebook.net/en_US/all.js";
-         ref.parentNode.insertBefore(js, ref);
-       }(document));
+            // listen for and handle auth.statusChange events
+            FB.Event.subscribe('auth.statusChange', function(response) {
+                if (response.authResponse) {
+                    // user has auth'd your app and is logged into Facebook
+                    FB.api('/me/friends?fields=name,location', debug_friends)
+                    document.getElementById('auth-loggedout').style.display = 'none';
+                    document.getElementById('auth-loggedin').style.display = 'block';
+                    document.getElementById('auth-loggedout').style.backgroundColour = 'pink';
+                } else {
+                    // user has not auth'd your app, or is not logged into Facebook
+                    document.getElementById('auth-loggedout').style.display = 'block';
+                    document.getElementById('auth-loggedin').style.display = 'none';
+                }
+            });
 
-      // Init the SDK upon load
-      window.fbAsyncInit = function() {
-        FB.init({
-          appId      : '253727158063193', // App ID
-          channelUrl : '//'+window.location.hostname+'/friendheat/channel.html', // Path to your Channel File
-          status     : true, // check login status
-          cookie     : true, // enable cookies to allow the server to access the session
-          xfbml      : false  // parse XFBML
-        });
+            // respond to clicks on the login and logout links
+            document.getElementById('auth-loginlink').addEventListener('click', function(){
+                FB.login(null, {'scope':'friends_location'});
+            });
+            document.getElementById('auth-logoutlink').addEventListener('click', function(){
+                FB.logout();
+            }); 
+        }
 
-        function AllRecieved() {
+        function AllReceived() {
             this.request_count = 0; 
             this.finisted = false;
             this.is_ready = function () {
                 return this.request_count == 0 && this.is_ready
             }
         }
-        
-        var all_recieved = AllRecieved();
+
+        var all_received = new AllReceived();
         var data_so_far = {};
+        var test = 0;
         
         function construct_map() {
-            if (! all_recieved.is_ready()) {
+            if (! all_received.is_ready()) {
                 return;
             }
-            console.debug(data_so_far);
+            var points = []
+            jQuery.each(data_so_far, function(index, city) {
+                points.push({location: new google.maps.LatLng(city.location.lat, city.location.long),
+                             weight: city.count}) 
+            });
+            console.debug(points);
+            var heatmap = new google.maps.visualization.HeatmapLayer({
+                data: points
+            });
+            heatmap.setMap(window.map);
         }
 
         function debug_friends(friends) {
             if (! friends.data) {
-                all_recieved.finished = true;
+                all_received.finished = true;
                 construct_map();
             }
-            jQuery.each(friends.data, function(index, friend) 
+
+            jQuery.each(friends.data, function(index, friend) {
                 if (friend.location) {
-                    if (data_so_far[friend.location]) {
-                        data_so_far[friend.location].count += 1
+                    if (data_so_far[friend.location.name]) {
+                        data_so_far[friend.location.name].count += 1
                     } else {
-                        data_so_far[friend.location] = {'count': 1}
-                        all_recieved.request_count++;
-                        $.getJSON(GEOCODE_API + $.param({'sensor': true, 'address': friend.location})
+                        data_so_far[friend.location.name] = {'count': 1}
+                        all_received.request_count++;
+
+                        $.getJSON('/geocode/' + encodeURI(friend.location.name))
                         .done(function(data) {
-                            data_so_far[friend.location].location = data
+                            data_so_far[friend.location.name].location = data
                             construct_map();
                         })
                         .complete(function () {
-                            all_recieved.request_count--;
+                            all_received.request_count--;
                             construct_map();
                         })
                     }
@@ -75,44 +136,20 @@
             })
 
             if (friends.paging.next) {
-                FB.api(friends.paging.next, debug_friends)});
+                FB.api(friends.paging.next, debug_friends);
             }
         }
-
-        // listen for and handle auth.statusChange events
-        FB.Event.subscribe('auth.statusChange', function(response) {
-          if (response.authResponse) {
-            // user has auth'd your app and is logged into Facebook
-            FB.api('/me/friends?fields=name,location', debug_friends)
-            document.getElementById('auth-loggedout').style.display = 'none';
-            document.getElementById('auth-loggedin').style.display = 'block';
-          } else {
-            // user has not auth'd your app, or is not logged into Facebook
-            document.getElementById('auth-loggedout').style.display = 'block';
-            document.getElementById('auth-loggedin').style.display = 'none';
-          }
-        });
-
-        // respond to clicks on the login and logout links
-        document.getElementById('auth-loginlink').addEventListener('click', function(){
-          FB.login(null, {'scope':'friends_location'});
-        });
-        document.getElementById('auth-logoutlink').addEventListener('click', function(){
-          FB.logout();
-        }); 
-      } 
-    </script>
-
-    <h1>Facebook Client-side Authentication Example</h1>
-      <div id="auth-status">
-        <div id="auth-loggedout">
-          <a href="#" id="auth-loginlink">Login</a>
+        </script>
+        <div id="auth-status" style="height: 3%; text-align: right; background-color: #808080; border-bottom: 2px solid white;">
+            <div id="auth-loggedout">
+                <a href="#" id="auth-loginlink">Login</a>
+            </div>
+            <div id="auth-loggedin" style="display:none">
+                (<a href="#" id="auth-logoutlink">logout</a>)
+            </div>
         </div>
-        <div id="auth-loggedin" style="display:none">
-            <ul id="json"></ul>
-        (<a href="#" id="auth-logoutlink">logout</a>)
-      </div>
-    </div>
 
-  </body>
+    
+        <div id="map_canvas" style="width:100%; height:96%"></div>
+    </body>
 </html>
