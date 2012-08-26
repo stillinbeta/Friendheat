@@ -1,0 +1,13 @@
+Friendheat is a little application that shows a heatmap of your Facebook
+friends' locations.
+
+It uses the Google Geocode API to find coordinates for cities, taking
+the first match. Because this API is limited, a thin proxy wrapper
+(application.py) is used to cache responses to limit total number
+of requests and number of requests per second.
+
+The "API" takes a location name and returns a {'lat', 'long'} object.
+
+All Facebook authorisation is done client-side via javascript, and the
+only data sent to the server are location names (which aren't associated with
+Facebook IDs).
