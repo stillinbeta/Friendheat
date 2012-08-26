@@ -4,17 +4,13 @@
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
         <title>Facebook Client-side Authentication Example</title>
         <script type="text/javascript" src="//static.stillinbeta.com/friendheat/jquery.js"></script>
-        <style type="text/css">
-            html { height: 100% }
-            body { height: 100%; margin: 0; padding: 0 }
-            #map_canvas { height: 100% }
-        </style>
-       
+        <link rel="stylesheet" href="/style.css" />
         <script type="text/javascript"
             src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyBip8_gYPz10ol1w4JUDkJs7BEEcI94HOg&sensor=false">
         </script>
         <script type="text/javascript">
            function initialize() {
+                $('.overlay-container').css('display', 'block');
                 var style = [ { "stylers": [ { "visibility": "off" } ] },{ "featureType": "landscape", "stylers": [ { "color": "#ffffff" }, { "visibility": "on" } ] },{ "featureType": "water", "stylers": [ { "color": "#808080" }, { "visibility": "on" } ] } ] 
                 var styledMap = new google.maps.StyledMapType(style, {"name": "High Contrast"})
   
@@ -53,31 +49,20 @@
                 channelUrl : '//'+window.location.hostname+'/friendheat/channel.html',
                 status     : true, // check login status
                 cookie     : true, // enable cookies to allow the server to access the session
-                xfbml      : false  // parse XFBML
+                xfbml      : true  // parse XFBML
             });
 
             // listen for and handle auth.statusChange events
             FB.Event.subscribe('auth.statusChange', function(response) {
                 if (response.authResponse) {
-                    // user has auth'd your app and is logged into Facebook
-                    FB.api('/me/friends?fields=name,location', debug_friends)
-                    document.getElementById('auth-loggedout').style.display = 'none';
-                    document.getElementById('auth-loggedin').style.display = 'block';
-                    document.getElementById('auth-loggedout').style.backgroundColour = 'pink';
+                    $('#container-content').html($('<img />').attr('src', 'spinner.gif'));
+                    FB.api('/me/friends?fields=name,location', debug_friends);
                 } else {
-                    // user has not auth'd your app, or is not logged into Facebook
-                    document.getElementById('auth-loggedout').style.display = 'block';
-                    document.getElementById('auth-loggedin').style.display = 'none';
+                    $('#loading-spinner').css('display', 'none');
+                    $('.fb-login-button').css('display', 'block');
                 }
             });
 
-            // respond to clicks on the login and logout links
-            document.getElementById('auth-loginlink').addEventListener('click', function(){
-                FB.login(null, {'scope':'friends_location'});
-            });
-            document.getElementById('auth-logoutlink').addEventListener('click', function(){
-                FB.logout();
-            }); 
         }
 
         function AllReceived() {
@@ -106,6 +91,7 @@
                 data: points
             });
             heatmap.setMap(window.map);
+            $('#overlay, .overlay-container').fadeOut();
         }
 
         function debug_friends(friends) {
@@ -113,6 +99,7 @@
                 all_received.finished = true;
                 construct_map();
             }
+            console.debug(friends);
 
             jQuery.each(friends.data, function(index, friend) {
                 if (friend.location) {
@@ -139,17 +126,20 @@
                 FB.api(friends.paging.next, debug_friends);
             }
         }
+
         </script>
-        <div id="auth-status" style="height: 3%; text-align: right; background-color: #808080; border-bottom: 2px solid white;">
-            <div id="auth-loggedout">
-                <a href="#" id="auth-loginlink">Login</a>
-            </div>
-            <div id="auth-loggedin" style="display:none">
-                (<a href="#" id="auth-logoutlink">logout</a>)
+        <div id="overlay" style=""></div>
+        <div class="overlay-container" style="display: none">
+            <div class="container-l">
+                <div class="container-r">
+                    <div id="container-content">
+                        <img id="loading-spinner" src="/spinner.gif" alt="loading" />
+                        <div class="fb-login-button" style="display: none" data-scope="friends_location">Login with Facebook</div>
+                    </div>
+                </div>
             </div>
         </div>
-
     
-        <div id="map_canvas" style="width:100%; height:96%"></div>
+        <div id="map_canvas" style=></div>
     </body>
 </html>
