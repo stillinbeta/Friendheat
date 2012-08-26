@@ -48,7 +48,6 @@
                     points.push({location: new google.maps.LatLng(city.location.lat, city.location.long),
                                  weight: city.count}) 
                 });
-                console.debug(points);
                 var heatmap = new google.maps.visualization.HeatmapLayer({
                     data: points
                 });
@@ -61,7 +60,6 @@
                     all_received.finished = true;
                     construct_map();
                 }
-
                 jQuery.each(friends.data, function(index, friend) {
                     if (friend.location) {
                         if (data_so_far[friend.location.name]) {
@@ -114,16 +112,20 @@
                 xfbml      : true 
             });
 
-            FB.Event.subscribe('auth.statusChange', function(response) {
-                if (response.authResponse) {
-                    $('#container-content').html($('<img />').attr('src', 'spinner.gif'));
-                    FB.api('/me/friends?fields=name,location', retreive_locations);
-                } else {
-                    $('#loading-spinner').css('display', 'none');
-                    $('.fb-login-button').css('display', 'block');
-                }
-            });
+            FB.Event.subscribe('auth.statusChange', handle_login_status);
+            FB.getLoginStatus(handle_login_status);
+        }
 
+        function handle_login_status(response) {
+            if (response.status === 'connected') {
+                FB.api('/me/friends?fields=name,location', retreive_locations);
+                FB.Event.unsubscribe('auth.statusChange', handle_login_status);
+                $('#loading-spinner').css('display', 'block');
+                $('.fb-login-button').css('display', 'none');
+            } else {
+                $('#loading-spinner').css('display', 'none');
+                $('.fb-login-button').css('display', 'block');
+            }
         }
         </script>
         <div id="overlay" style=""></div>
