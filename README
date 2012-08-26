@@ -11,3 +11,5 @@ The "API" takes a location name and returns a {'lat', 'long'} object.
 All Facebook authorisation is done client-side via javascript, and the
 only data sent to the server are location names (which aren't associated with
 Facebook IDs).
+
+You can see an installed version at http://friendheat.stillinbeta.com
