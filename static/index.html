@@ -3,13 +3,13 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
         <title>Facebook Client-side Authentication Example</title>
-        <script type="text/javascript" src="//static.stillinbeta.com/friendheat/jquery.js"></script>
         <link rel="stylesheet" href="/style.css" />
+        <script type="text/javascript" src="//static.stillinbeta.com/friendheat/jquery.js"></script>
         <script type="text/javascript"
             src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyBip8_gYPz10ol1w4JUDkJs7BEEcI94HOg&sensor=false">
         </script>
         <script type="text/javascript">
-           function initialize() {
+            function initialize() {
                 $('.overlay-container').css('display', 'block');
                 var style = [ { "stylers": [ { "visibility": "off" } ] },{ "featureType": "landscape", "stylers": [ { "color": "#ffffff" }, { "visibility": "on" } ] },{ "featureType": "water", "stylers": [ { "color": "#808080" }, { "visibility": "on" } ] } ] 
                 var styledMap = new google.maps.StyledMapType(style, {"name": "High Contrast"})
@@ -26,7 +26,69 @@
                 window.map.mapTypes.set('map_style', styledMap);
                 window.map.setMapTypeId('map_style');
             }
-        </script> 
+ 
+            function AllReceived() {
+                this.request_count = 0; 
+                this.finisted = false;
+                this.is_ready = function () {
+                    return this.request_count == 0 && this.is_ready
+                }
+            }
+
+            var all_received = new AllReceived();
+            var data_so_far = {};
+            var test = 0;
+            
+            function construct_map() {
+                if (! all_received.is_ready()) {
+                    return;
+                }
+                var points = []
+                jQuery.each(data_so_far, function(index, city) {
+                    points.push({location: new google.maps.LatLng(city.location.lat, city.location.long),
+                                 weight: city.count}) 
+                });
+                console.debug(points);
+                var heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: points
+                });
+                heatmap.setMap(window.map);
+                $('#overlay, .overlay-container').fadeOut();
+            }
+
+            function retreive_locations(friends) {
+                if (! friends.data) {
+                    all_received.finished = true;
+                    construct_map();
+                }
+
+                jQuery.each(friends.data, function(index, friend) {
+                    if (friend.location) {
+                        if (data_so_far[friend.location.name]) {
+                            data_so_far[friend.location.name].count += 1
+                        } else {
+                            data_so_far[friend.location.name] = {'count': 1}
+                            all_received.request_count++;
+
+                            $.getJSON('/geocode/' + encodeURI(friend.location.name))
+                            .done(function(data) {
+                                data_so_far[friend.location.name].location = data
+                                construct_map();
+                            })
+                            .complete(function () {
+                                all_received.request_count--;
+                                construct_map();
+                            })
+                        }
+                    }
+                })
+
+                if (friends.paging.next) {
+                    FB.api(friends.paging.next, retreive_locations);
+                }
+            }
+
+           </script> 
     </head>
     <body onload="initialize()">
         <div id="fb-root"></div>
@@ -47,16 +109,15 @@
             FB.init({
                 appId      : '253727158063193', // App ID
                 channelUrl : '//'+window.location.hostname+'/friendheat/channel.html',
-                status     : true, // check login status
-                cookie     : true, // enable cookies to allow the server to access the session
-                xfbml      : true  // parse XFBML
+                status     : true, 
+                cookie     : true, 
+                xfbml      : true 
             });
 
-            // listen for and handle auth.statusChange events
             FB.Event.subscribe('auth.statusChange', function(response) {
                 if (response.authResponse) {
                     $('#container-content').html($('<img />').attr('src', 'spinner.gif'));
-                    FB.api('/me/friends?fields=name,location', debug_friends);
+                    FB.api('/me/friends?fields=name,location', retreive_locations);
                 } else {
                     $('#loading-spinner').css('display', 'none');
                     $('.fb-login-button').css('display', 'block');
@@ -64,69 +125,6 @@
             });
 
         }
-
-        function AllReceived() {
-            this.request_count = 0; 
-            this.finisted = false;
-            this.is_ready = function () {
-                return this.request_count == 0 && this.is_ready
-            }
-        }
-
-        var all_received = new AllReceived();
-        var data_so_far = {};
-        var test = 0;
-        
-        function construct_map() {
-            if (! all_received.is_ready()) {
-                return;
-            }
-            var points = []
-            jQuery.each(data_so_far, function(index, city) {
-                points.push({location: new google.maps.LatLng(city.location.lat, city.location.long),
-                             weight: city.count}) 
-            });
-            console.debug(points);
-            var heatmap = new google.maps.visualization.HeatmapLayer({
-                data: points
-            });
-            heatmap.setMap(window.map);
-            $('#overlay, .overlay-container').fadeOut();
-        }
-
-        function debug_friends(friends) {
-            if (! friends.data) {
-                all_received.finished = true;
-                construct_map();
-            }
-            console.debug(friends);
-
-            jQuery.each(friends.data, function(index, friend) {
-                if (friend.location) {
-                    if (data_so_far[friend.location.name]) {
-                        data_so_far[friend.location.name].count += 1
-                    } else {
-                        data_so_far[friend.location.name] = {'count': 1}
-                        all_received.request_count++;
-
-                        $.getJSON('/geocode/' + encodeURI(friend.location.name))
-                        .done(function(data) {
-                            data_so_far[friend.location.name].location = data
-                            construct_map();
-                        })
-                        .complete(function () {
-                            all_received.request_count--;
-                            construct_map();
-                        })
-                    }
-                }
-            })
-
-            if (friends.paging.next) {
-                FB.api(friends.paging.next, debug_friends);
-            }
-        }
-
         </script>
         <div id="overlay" style=""></div>
         <div class="overlay-container" style="display: none">
